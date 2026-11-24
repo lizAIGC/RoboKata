@@ -1,0 +1,56 @@
+[
+  {
+    "folder": "comparison-cards",
+    "query_id": "E380_O03_Q00_A02",
+    "inference_demo_id": "E380_O03_DF1_A00",
+    "display_demo_id": "WOBJ50_O03_S009",
+    "display_is_inference_prompt": false,
+    "recording_sha256": "0e4872bdbde09125e6bce2d76182ff86365afbfbfc72a7e7200d5ee248d46306",
+    "video_sha256": "c4e50153b3596f10feee5bfe401b004fbc2b25f150c03b2bb520fdfd957356d9",
+    "waypoints": [
+      [
+        -0.23929269441761905,
+        0.0063960468077567945,
+        0.9763380212568807
+      ]
+    ],
+    "initial_target_distance_cm": 26.523709285315523,
+    "grasp": "compact_body_top"
+  },
+  {
+    "folder": "comparison-mug",
+    "query_id": "E380_G01_Q04_A00",
+    "inference_demo_id": "E380_G01_DF1_A01",
+    "display_demo_id": "W50_G01_S16",
+    "display_is_inference_prompt": false,
+    "recording_sha256": "01cb6eb00024f042887c301347537ad38aa05bd4dff32fc4215c9df331134bbe",
+    "video_sha256": "fbd81aeef74e69151cdedcddb93e128ef3e986fd3811684603be9f402eb29418",
+    "waypoints": [
+      [
+        -0.23929269441761905,
+        0.0063960468077567945,
+        0.9763380212568807
+      ]
+    ],
+    "initial_target_distance_cm": 5.280535966394381,
+    "grasp": "opposite_mouth"
+  },
+  {
+    "folder": "comparison-2",
+    "query_id": "E380_G03_Q03_A01",
+    "inference_demo_id": "E380_G03_DF1_A00",
+    "display_demo_id": "W50_G03_S01",
+    "display_is_inference_prompt": false,
+    "recording_sha256": "d7a18a792175136dcde06a04d1fc4aebfc8203b156ff5540452a1a14451ae865",
+    "video_sha256": "8c6193ece57ac307bc09fadad8d1d7ebf2de6652c717d778face6fdf53e4b20d",
+    "waypoints": [
+      [
+        -0.23929269441761905,
+        0.0063960468077567945,
+        0.9763380212568807
+      ]
+    ],
+    "initial_target_distance_cm": 22.975525649877472,
+    "grasp": "handle_top"
+  }
+]

@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="author" content="Anonymous Authors">
+    <meta name="robots" content="noindex,nofollow">
+    <title>RoboKata — Demonstration-Faithful In-Context Imitation</title>
+    <link rel="stylesheet" href="assets/site.css">
+    <script defer src="assets/site-data.js"></script>
+    <script defer src="assets/site.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#home" class="brand">Robo<span>Kata</span></a>
+        <div class="nav-links">
+          <a href="#home">Home</a>
+          <a href="#robotwin">Simulation</a>
+          <a href="#real">Real-world</a>
+          <a href="#method">Method</a>
+          <a href="#bench">Benchmark</a>
+          <a href="#comparisons">Comparisons</a>
+          <a href="#results">Results</a>
+        </div>
+        <a class="code-link" href="https://github.com/lizAIGC/RoboKata" target="_blank" rel="noopener noreferrer">Anonymous Code ↗</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero-carousel" id="home" aria-label="Human demonstration to robot execution">
+        <div class="carousel-viewport">
+          <div class="carousel-stage">
+            <button class="peek peek-prev" aria-label="Previous demonstration"><span class="peek-images"><img alt=""><img alt=""></span></button>
+            <div class="hero-slide">
+              <div class="pair" id="hero-pair">
+              </div>
+            </div>
+            <button class="peek peek-next" aria-label="Next demonstration"><span class="peek-images"><img alt=""><img alt=""></span></button>
+          </div>
+        </div>
+        <p class="hero-task" id="hero-task" aria-live="polite"></p>
+        <div class="carousel-navigation">
+          <button class="arrow" id="prev-slide" aria-label="Previous demonstration">‹</button>
+          <div class="dots">
+            <button aria-label="Show example 1" aria-current="true"></button>
+            <button aria-label="Show example 2" aria-current="false"></button>
+            <button aria-label="Show example 3" aria-current="false"></button>
+            <button aria-label="Show example 4" aria-current="false"></button>
+            <button aria-label="Show example 5" aria-current="false"></button>
+          </div>
+          <button class="arrow" id="next-slide" aria-label="Next demonstration">›</button>
+        </div>
+      </section>
+      <section class="paper-intro" id="paper">
+        <h1 class="paper-title">Watching the Demo, or Ignoring It?<span class="paper-subtitle">Demonstration-Faithful In-Context Imitation for World Action Models</span></h1>
+        <p class="anonymous">Anonymous Authors</p>
+        <div class="paper-summary">
+          <details class="abstract" open>
+            <summary>Abstract</summary>
+            <p>In-context imitation lets a robot policy perform an unseen task from a single demonstration without finetuning. World action models (WAMs) acquire this ability by predicting the future video and decoding actions from it. Yet such policies are evaluated by task success, which hides whether the demonstration is followed: the strongest of them selects the demonstrated object but often leaves its route. The reason is that existing in-context WAMs decode the action from imagined frames without attending to the demonstration, which thus shapes what the robot imagines more than what it does. We present RoboKata, an in-context WAM whose actions stay faithful to the demonstration. Demo Cross-Attention lets the action branch read frozen DINOv2 tokens of the demonstration through a gated cross-attention. Foresight Indexing predicts the future in the same feature space and uses this prediction to index the demonstration frames that the next action reads, without alignment labels. RoboKata is trained on counterfactual pairs that change the demonstration along one axis at a time. To measure demonstration use, we build RoboKata-Bench, which fixes the query scene, changes the demonstration along five axes, and counts a trial as a strict success only if the robot passes the demonstrated waypoints. On RoboKata-Bench, RoboKata matches the strongest baseline in task success and raises the strict success rate from 51.2% to 63.2%. With human-video prompts, it also raises the zero-shot success rate on six unseen RoboTwin 2.0 tasks from 45.0% to 54.3%.</p>
+          </details>
+        </div>
+        <figure class="paper-results abstract-results" id="results">
+          <img src="assets/static/images/paper_performance.png" loading="lazy" alt="Original Figure 1(c) from the paper: performance on RoboKata-Bench and RoboTwin 2.0">
+          <figcaption>Strict success on RoboKata-Bench: <strong>63.2%</strong> · Zero-WAM: 51.2%</figcaption>
+        </figure>
+      </section>
+      <section class="section soft" id="robotwin">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>1. Performance on RoboTwin 2.0 scenarios</h2>
+            <p>Human demonstrations on held-out tasks.</p>
+          </div>
+          <div class="rt-grid">
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_stack_blocks_three_3000001">
+              </div>
+              <h3>Stack three blocks</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_place_bread_basket_3403000">
+              </div>
+              <h3>Place bread in the basket</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_place_empty_cup_3404000">
+              </div>
+              <h3>Place the cup on the coaster</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_place_object_scale_3400000">
+              </div>
+              <h3>Place an object on the scale</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_stamp_seal_3401110">
+              </div>
+              <h3>Stamp the pad</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair landscape" data-pair="rt_move_stapler_pad_100009">
+              </div>
+              <h3>Move the stapler to the pad</h3>
+            </figure>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="real">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>2. Performance on real-world robot scenarios</h2>
+          </div>
+          <div class="real-grid">
+            <figure class="media-card">
+              <div class="pair " data-pair="real-policy-03">
+              </div>
+              <h3>Pick &amp; place</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair " data-pair="real-policy-06">
+              </div>
+              <h3>Push-T</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair " data-pair="real-policy-07">
+              </div>
+              <h3>Check mark · blue</h3>
+            </figure>
+            <figure class="media-card">
+              <div class="pair " data-pair="real-policy-09">
+              </div>
+              <h3>Check mark · red</h3>
+            </figure>
+          </div>
+        </div>
+      </section>
+      <section class="section soft" id="method">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>3. Overview of RoboKata</h2>
+          </div>
+          <div class="method-layout">
+            <figure class="method-figure">
+              <img src="assets/static/images/method.png" loading="lazy" alt="RoboKata architecture from the paper">
+              <div class="method-spot">
+              </div>
+            </figure>
+            <div class="method-steps">
+              <button data-region="1,1,52,97">Predict ahead<small>Learn future semantic features.</small></button>
+              <button data-region="54,1,45,49">Read the demo<small>Direct access through Demo Cross-Attention.</small></button>
+              <button data-region="54,50,45,45">Index the demo<small>The predicted chunk softly biases attention.</small></button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="route">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>4. Following the Demonstrated Path</h2>
+            <p>From different starting positions, the robot follows the demonstrated waypoints in order.</p>
+          </div>
+          <div class="route-layout">
+            <div class="pair " data-pair="bench-route-3d">
+            </div>
+            <div class="route-panel">
+              <canvas id="route-canvas" tabindex="0" aria-describedby="route-hint" aria-label="Measured 3D paths; drag to rotate">
+              </canvas>
+              <div class="route-tools">
+                <div class="route-legend">
+                  <span>Demo</span>
+                  <span>Execution</span>
+                </div>
+                <button class="route-reset">Reset view</button>
+              </div>
+              <p class="route-note" id="route-hint"><span class="route-hint-icon" aria-hidden="true">↔</span> Click and drag to rotate</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section soft" id="bench">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>5. Manipulation on RoboKata-Bench</h2>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Benchmark axes">
+            <button role="tab" id="tab-object" aria-controls="axis-object" aria-selected="true" tabindex="0" data-axis="object">Object</button>
+            <button role="tab" id="tab-trajectory" aria-controls="axis-trajectory" aria-selected="false" tabindex="-1" data-axis="trajectory">Trajectory</button>
+            <button role="tab" id="tab-affordance" aria-controls="axis-affordance" aria-selected="false" tabindex="-1" data-axis="affordance">Affordance</button>
+            <button role="tab" id="tab-demo_view" aria-controls="axis-demo_view" aria-selected="false" tabindex="-1" data-axis="demo_view">View</button>
+            <button role="tab" id="tab-demo_environment" aria-controls="axis-demo_environment" aria-selected="false" tabindex="-1" data-axis="demo_environment">Environment</button>
+          </div>
+          <p class="axis-desc" id="axis-description">New objects. The demonstration specifies what to manipulate.</p>
+          <div id="axis-object" role="tabpanel" aria-labelledby="tab-object" >
+            <div class="gallery-grid">
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-object-1">
+                </div>
+                <h3>Mouse</h3>
+                <figcaption><button data-trajectory="path-bench-object-1" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-object-1" hidden>
+                  <img loading="lazy" src="assets/media/bench-object-1-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-object-2">
+                </div>
+                <h3>Soap</h3>
+                <figcaption><button data-trajectory="path-bench-object-2" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-object-2" hidden>
+                  <img loading="lazy" src="assets/media/bench-object-2-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-object-3">
+                </div>
+                <h3>Card box</h3>
+                <figcaption><button data-trajectory="path-bench-object-3" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-object-3" hidden>
+                  <img loading="lazy" src="assets/media/bench-object-3-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-object-4">
+                </div>
+                <h3>Alarm clock</h3>
+                <figcaption><button data-trajectory="path-bench-object-4" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-object-4" hidden>
+                  <img loading="lazy" src="assets/media/bench-object-4-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div id="axis-trajectory" role="tabpanel" aria-labelledby="tab-trajectory" hidden>
+            <div class="gallery-grid">
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-trajectory-1">
+                </div>
+                <h3>Toy car</h3>
+                <figcaption><button data-trajectory="path-bench-trajectory-1" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-trajectory-1" hidden>
+                  <img loading="lazy" src="assets/media/bench-trajectory-1-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-trajectory-2">
+                </div>
+                <h3>Baguette</h3>
+                <figcaption><button data-trajectory="path-bench-trajectory-2" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-trajectory-2" hidden>
+                  <img loading="lazy" src="assets/media/bench-trajectory-2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-trajectory-3">
+                </div>
+                <h3>Claw hammer</h3>
+                <figcaption><button data-trajectory="path-bench-trajectory-3" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-trajectory-3" hidden>
+                  <img loading="lazy" src="assets/media/bench-trajectory-3/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-trajectory-4">
+                </div>
+                <h3>Rubik&#x27;s cube</h3>
+                <figcaption><button data-trajectory="path-bench-trajectory-4" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-trajectory-4" hidden>
+                  <img loading="lazy" src="assets/media/bench-trajectory-4/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div id="axis-affordance" role="tabpanel" aria-labelledby="tab-affordance" hidden>
+            <div class="gallery-grid">
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-affordance-1">
+                </div>
+                <h3>Ceramic cup</h3>
+                <figcaption><button data-trajectory="path-bench-affordance-1" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-affordance-1" hidden>
+                  <img loading="lazy" src="assets/media/bench-affordance-1/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-affordance-2">
+                </div>
+                <h3>Remote control</h3>
+                <figcaption><button data-trajectory="path-bench-affordance-2" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-affordance-2" hidden>
+                  <img loading="lazy" src="assets/media/bench-affordance-2-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-affordance-3">
+                </div>
+                <h3>Metal cup</h3>
+                <figcaption><button data-trajectory="path-bench-affordance-3" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-affordance-3" hidden>
+                  <img loading="lazy" src="assets/media/bench-affordance-3-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-affordance-4">
+                </div>
+                <h3>Mug</h3>
+                <figcaption><button data-trajectory="path-bench-affordance-4" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-affordance-4" hidden>
+                  <img loading="lazy" src="assets/media/bench-affordance-4-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div id="axis-demo_view" role="tabpanel" aria-labelledby="tab-demo_view" hidden>
+            <div class="gallery-grid">
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_view-1">
+                </div>
+                <h3>Toy car</h3>
+                <figcaption><button data-trajectory="path-bench-demo_view-1" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_view-1" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_view-1-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_view-2">
+                </div>
+                <h3>Metal cup</h3>
+                <figcaption><button data-trajectory="path-bench-demo_view-2" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_view-2" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_view-2-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_view-3">
+                </div>
+                <h3>Toy car</h3>
+                <figcaption><button data-trajectory="path-bench-demo_view-3" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_view-3" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_view-3-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_view-4">
+                </div>
+                <h3>Toy car</h3>
+                <figcaption><button data-trajectory="path-bench-demo_view-4" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_view-4" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_view-4-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div id="axis-demo_environment" role="tabpanel" aria-labelledby="tab-demo_environment" hidden>
+            <div class="gallery-grid">
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_environment-1">
+                </div>
+                <h3>Toy car</h3>
+                <figcaption><button data-trajectory="path-bench-demo_environment-1" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_environment-1" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_environment-1-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_environment-2">
+                </div>
+                <h3>Metal cup</h3>
+                <figcaption><button data-trajectory="path-bench-demo_environment-2" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_environment-2" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_environment-2-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_environment-3">
+                </div>
+                <h3>Claw hammer</h3>
+                <figcaption><button data-trajectory="path-bench-demo_environment-3" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_environment-3" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_environment-3-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+              <figure class="media-card">
+                <div class="pair " data-pair="bench-demo_environment-4">
+                </div>
+                <h3>Baguette</h3>
+                <figcaption><button data-trajectory="path-bench-demo_environment-4" aria-expanded="false">View paths</button></figcaption>
+                <div class="trajectory-drawer" id="path-bench-demo_environment-4" hidden>
+                  <img loading="lazy" src="assets/media/bench-demo_environment-4-display-v2/trajectory.png" alt="Measured demonstration and execution paths">
+                </div>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="cross">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>6. Performance under Cross-embodiment</h2>
+            <p>ALOHA demonstrations, Franka execution.</p>
+          </div>
+          <div class="cross-grid">
+            <figure class="media-card">
+              <div class="pair " data-pair="cross-1">
+              </div>
+              <h3>Mouse · ALOHA to Franka</h3>
+              <figcaption><button data-trajectory="path-cross-1" aria-expanded="false">View paths</button></figcaption>
+              <div class="trajectory-drawer" id="path-cross-1" hidden>
+                <img loading="lazy" src="assets/media/cross-1/trajectory.png" alt="Measured demonstration and execution paths">
+              </div>
+            </figure>
+            <figure class="media-card">
+              <div class="pair " data-pair="cross-2">
+              </div>
+              <h3>Mug · ALOHA to Franka</h3>
+              <figcaption><button data-trajectory="path-cross-2" aria-expanded="false">View paths</button></figcaption>
+              <div class="trajectory-drawer" id="path-cross-2" hidden>
+                <img loading="lazy" src="assets/media/cross-2/trajectory.png" alt="Measured demonstration and execution paths">
+              </div>
+            </figure>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="comparisons">
+        <div class="wrap">
+          <div class="comparison-header">
+            <div class="comparison-intro">
+              <div class="section-head">
+                <h2>7. Policy Comparison</h2>
+                <p>The same query for all four models.</p>
+              </div>
+              <div class="compare-toolbar">
+                <div class="compare-cases" role="group" aria-label="Comparison task">
+                  <button data-compare-case="0" aria-pressed="true">Card box</button>
+                  <button data-compare-case="1" aria-pressed="false">Mug</button>
+                  <button data-compare-case="2" aria-pressed="false">Metal cup</button>
+                </div>
+              </div>
+              <button id="compare-play" aria-label="Replay the demo and all four policies" title="Replay together"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span>Replay</span></button>
+            </div>
+          </div>
+          <div class="compare-grid">
+            <figure class="comparison-reference">
+              <!-- <span class="comparison-role">Reference demo</span> -->
+              <h3>Task demo</h3>
+              <video autoplay loop id="comparison-demo" controls muted playsinline preload="metadata" aria-label="Task-matched demonstration">
+              </video>
+            </figure>
+            <figure class="comparison-baseline">
+              <!-- <span class="comparison-role">Baseline</span> -->
+              <h3>In-Context-π₀</h3>
+              <video autoplay loop controls muted playsinline preload="none" aria-label="In-Context-π₀ execution">
+              </video>
+            </figure>
+            <figure class="comparison-baseline">
+              <!-- <span class="comparison-role">Baseline</span> -->
+              <h3>LingBot-VA</h3>
+              <video autoplay loop controls muted playsinline preload="none" aria-label="LingBot-VA execution">
+              </video>
+            </figure>
+            <figure class="comparison-baseline">
+              <!-- <span class="comparison-role">Baseline</span> -->
+              <h3>Zero-WAM</h3>
+              <video autoplay loop controls muted playsinline preload="none" aria-label="Zero-WAM execution">
+              </video>
+            </figure>
+            <figure class="ours">
+              <!-- <span class="comparison-role">Our method</span> -->
+              <h3>RoboKata (Ours)</h3>
+              <video autoplay loop controls muted playsinline preload="none" aria-label="RoboKata execution">
+              </video>
+            </figure>
+          </div>
+          <p class="compare-note"></p>
+        </div>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="wrap">
+        <!-- <span>RoboKata · Anonymous research project</span> -->
+        <a href="#home">Back to top ↑</a>
+      </div>
+    </footer>
+  </body>
+</html>
