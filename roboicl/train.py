@@ -14,7 +14,7 @@ from examples.baselines.zero_wam.zero_wam import cache, training
 from examples.baselines.zero_wam.zero_wam.action_space import EpisodeActionSpace
 from examples.baselines.zero_wam.zero_wam.config import ZeroWAMConfig
 
-from pilot import RoboICLDataset
+from data_adapter import RoboICLDataset
 from prepare import (
     ACTION_CHANNELS,
     ACTION_REPRESENTATION,
@@ -188,11 +188,9 @@ def install_bridge(work, plan, receipt, max_steps, batch_per_gpu=1, *,
                    semantic_cache=None, semantic_weight=0.5, indexing=None, demo_latents=False):
     if demo_latents and (demo_cache is not None or semantic_cache is not None or indexing is not None):
         raise ValueError("A_latent requires latent-only demo input without B/FI")
-    data_audit = None
-    if demo_latents:
-        from single_embodiment import audit_plan
+    from single_embodiment import audit_plan
 
-        data_audit = audit_plan(plan)
+    data_audit = audit_plan(plan)
     native_config = training.native_config
     prepare_episode = training.prepare_episode
     atomic_json = training.atomic_json
@@ -329,6 +327,8 @@ def install_bridge(work, plan, receipt, max_steps, batch_per_gpu=1, *,
         settings.ig_app_config["action_representation"] = ACTION_REPRESENTATION
         settings.ig_roboicl_channels = list(ACTION_CHANNELS)
         settings.ig_roboicl_cache_sha256 = sha256(work / "verified-cache.json")
+        settings.ig_single_embodiment_data = data_audit
+        settings.ig_roboicl_video_contract = receipt["contract"]
         if demo_enabled:
             settings.ig_demo_attention = spec
             settings.ig_demo_dropout = demo_dropout
@@ -337,8 +337,6 @@ def install_bridge(work, plan, receipt, max_steps, batch_per_gpu=1, *,
             else:
                 settings.ig_demo_source = "latent"
                 settings.ig_roboicl_encoding = plan["encoding"]
-                settings.ig_single_embodiment_data = data_audit
-                settings.ig_roboicl_video_contract = receipt["contract"]
                 settings.ig_trainable_parameter_target = LATENT_PARAMETER_TARGET
                 settings.ig_trainable_parameter_tolerance = LATENT_PARAMETER_TOLERANCE
         if semantic_cache is not None:
@@ -421,10 +419,10 @@ def main():
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--model", required=True, type=Path)
     parser.add_argument("--empty-text", required=True, type=Path)
-    parser.add_argument("--batch-per-gpu", type=int, default=1)
+    parser.add_argument("--batch-per-gpu", type=int, default=16)
     parser.add_argument("--epochs", required=True, type=int)
-    parser.add_argument("--warmup-steps", default=10, type=int)
-    parser.add_argument("--learning-rate", default=1e-4, type=float)
+    parser.add_argument("--warmup-steps", default=100, type=int)
+    parser.add_argument("--learning-rate", default=1e-5, type=float)
     parser.add_argument("--lora-rank", type=int, help="LoRA rank: default 98 for A_latent, 106 otherwise")
     parser.add_argument("--seed", default=1, type=int)
     parser.add_argument("--num-workers", default=2, type=int)
@@ -434,7 +432,7 @@ def main():
     parser.add_argument("--initialize-from", type=Path, help="Warm-start from a baseline, A, or (for indexing) A+B1 adapter")
     demo_input = parser.add_mutually_exclusive_group()
     demo_input.add_argument("--demo-features", type=Path, help="Enable A using the precomputed DINOv2 cache")
-    demo_input.add_argument("--demo-latents", action="store_true", help="A_latent: read video input demo patches, without B/FI")
+    demo_input.add_argument("--demo-latents", action="store_true", help="Reading ablation: use video latent patches without semantic foresight or indexing")
     parser.add_argument("--demo-dropout", type=float, default=0.3)
     parser.add_argument("--semantic-features", type=Path, help="Replace latent MCP with B1 query DINO targets")
     parser.add_argument("--semantic-weight", type=float, default=0.5)

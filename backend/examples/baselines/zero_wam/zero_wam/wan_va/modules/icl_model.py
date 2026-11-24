@@ -1178,6 +1178,10 @@ class WanICLTransformer3DModel(ModelMixin, ConfigMixin):
 
         collected = []
         for layer_index, block in enumerate(self.blocks):
+            demo_log_index = log_indices.pop(layer_index, None)
+            if demo_log_index is not None:
+                # Match the concatenated [noisy actions, clean actions] streams.
+                demo_log_index = torch.cat([demo_log_index, demo_log_index], dim=1)
             hs_latent, hs_action = block(
                 hs_latent,
                 hs_action,
@@ -1187,7 +1191,7 @@ class WanICLTransformer3DModel(ModelMixin, ConfigMixin):
                 action_timestep_proj,
                 rotary_emb,
                 demo_features=demo,
-                demo_log_index=log_indices.pop(layer_index, None),
+                demo_log_index=demo_log_index,
             )
             if indexing is not None and layer_index in KEY_LAYERS:
                 clean = hs_latent[:, target_length:2 * target_length]

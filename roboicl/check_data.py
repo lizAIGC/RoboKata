@@ -1,4 +1,4 @@
-"""Check mixed sources, real RGB decoding, time axes and exact-shape sampling."""
+"""Check Franka records, RGB decoding, time axes and exact-shape sampling."""
 
 import argparse
 from collections import Counter
@@ -36,8 +36,7 @@ def check_record(item):
                 if values.dtype != np.float32 or not np.isfinite(values).all():
                     raise ValueError(f"Invalid {name} values: {path}")
     else:
-        # Decode the first, middle and final head images of every ALOHA source.
-        read_rgb(path, frames, [0, frames // 2, frames - 1], 1)
+        raise ValueError(f"Expected a Franka NPZ recording: {path}")
     return episode
 
 
@@ -59,7 +58,7 @@ def main():
     cases = {}
     for role, episode in required_latents(plan):
         record = plan["records"][episode]
-        group = record.get("source_dataset", "legacy"), record.get("kind", "franka"), role
+        group = record.get("source_dataset", "franka"), record.get("kind", "franka"), role
         # Keep a short real recording from every source/embodiment/role.
         if group not in cases or record["frames"] < plan["records"][cases[group]]["frames"]:
             cases[group] = episode
@@ -82,7 +81,7 @@ def main():
     for episode, record in plan["records"].items():
         if len(latent_plan(record["frames"], "demo")["latent_anchor_indices"]) < 1:
             raise ValueError(f"Empty temporal plan: {episode}")
-    retained = Counter(plan["pairs"]["train"][index]["demo_embodiment"] for index in used)
+    retained = Counter(plan["records"][plan["pairs"]["train"][index]["demo"]].get("kind", "franka") for index in used)
     report = dict(status="passed", checked_records=len(entries), decoded_cases=decoded,
                   train_pairs=len(plan["pairs"]["train"]), evaluation_pairs=len(plan["pairs"]["validation"]),
                   cache_entries=dict(Counter(role for role, _ in required_latents(plan))),

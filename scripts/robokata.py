@@ -1,4 +1,4 @@
-"""Public launcher; forwards arguments to the unchanged research implementation."""
+"""Public launcher for the single-view Franka RoboKata recipe."""
 import argparse
 import json
 import os
@@ -31,7 +31,7 @@ def main():
         cmd += ['-m', 'torch.distributed.run', '--standalone', f'--nproc-per-node={args.gpus}']
     cmd.append(str(ROOT / 'roboicl' / ENTRYPOINTS[args.command]))
     if args.command == 'train' and not any(v in ('-h', '--help') for v in forwarded):
-        recipe = json.loads((ROOT / 'configs/train.json').read_text())
+        recipe = json.loads((ROOT / 'configs/train.json').read_text(encoding='utf-8'))
         for key, value in recipe.items():
             if key != 'gpus':
                 flag = '--' + key.replace('_', '-')

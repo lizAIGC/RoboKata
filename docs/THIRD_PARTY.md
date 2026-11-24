@@ -8,8 +8,7 @@ Third-party copyright notices and licenses are retained in their original files.
 - Zero-WAM source attribution and modifications:
   `backend/examples/baselines/zero_wam/zero_wam/wan_va/UPSTREAM.md`.
 
-Third-party source links identify external dependencies, not this submission's
-authors. Model and dataset assets are not included in this supplement.
+Model and dataset assets are supplied separately.
 
 ## Pretrained backbone
 

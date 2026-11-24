@@ -1,4 +1,4 @@
-"""Narrow, zero-gated action-to-demo attention for the RoboICL A variant."""
+"""Gated action-to-demonstration cross-attention."""
 
 import torch
 from torch import nn
@@ -64,9 +64,9 @@ def attach_demo_attention(model, spec):
     latent = is_latent_spec(spec)
     allowed = (SPEC, spec_for_views(2), latent_spec_for_views(1), latent_spec_for_views(2))
     if spec not in allowed:
-        raise ValueError(f"Unsupported Robot-ICL + A architecture: {spec}")
+        raise ValueError(f"Unsupported demonstration attention configuration: {spec}")
     if not getattr(model, "supports_demo_attention", False):
-        raise RuntimeError("Apply demo_attention.patch to the isolated IG checkout")
+        raise RuntimeError("The backbone does not support demonstration attention")
     views = spec["views"] if latent else (2 if spec["feature_schema"] == DUAL_SCHEMA else 1)
     model.demo_source = "latent" if latent else "dino"
     for index in spec["layers"]:

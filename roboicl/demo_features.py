@@ -1,4 +1,4 @@
-"""Precompute the video-only demo tokens used by Robot-ICL + A."""
+"""Precompute RGB demonstration tokens for cross-attention."""
 
 import argparse
 from pathlib import Path

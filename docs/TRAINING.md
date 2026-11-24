@@ -1,28 +1,41 @@
-# Data preparation and training
+# Training the main RoboKata model
 
-Run commands from the release root in the selected training environment.
-Set these variables to your own locations; paths below are placeholders.
-`MODEL` must point to the compatible pretrained backbone described in
-[third-party dependencies](THIRD_PARTY.md#pretrained-backbone).
+## Data and split
 
-```bash
-DATA=/absolute/path/to/recordings
-MIXED=/absolute/path/to/mixed25000-manifest
-WORK=/absolute/path/to/new/cache
-MODEL=/absolute/path/to/pretrained-backbone
-DINO=/absolute/path/to/dinov2-base
-EMPTY_TEXT=/absolute/path/to/empty_text_emb.pt
-RUN=/absolute/path/to/new/run
+Use the original verified Franka recording release with this layout:
+
+```text
+DATA/
+  release_status.json
+  verified-train3000.json
+  train3000/
+    bundle.json
+    manifest.json
+    pairing.json
+    records/<recording-id>/policy_recording.npz
 ```
 
-The reference recipe uses 12,000 official v2.1 pairs and 13,000 selected old pairs,
-with a separate 1,200-pair evaluation split. Supply the matching recording
-release and mixed manifest. Data assets are supplied separately; do not
-substitute the old validation split, which overlaps this training set.
-Demo inputs use the external/head camera; query inputs use external + left wrist.
+The preparation step verifies the release indices and uses split seed `20261105`. It holds out 50 of the 500 physical initial-state families before forming the within-split pair plan. Each family contains six task recordings. Training therefore has 2,700 recordings from 450 families; validation has 300 recordings from 50 families.
+
+Release validation uses the recording and pair counts, bundle digest, verified-release receipt and index hashes. It does not require a particular hosting account or repository name in the release metadata.
+
+The release's task-matched directed pairs are restricted to each split. Demo and Query must be different recordings from different families with the same complete task identifier. This excludes 3,000 self-pairs and 4,880 cross-split pairs, leaving 21,860 training pairs and 260 validation pairs. All 2,700 training recordings appear in both training roles. Validation retains all 300 recordings in the split; only recordings with a non-self partner contribute a validation pair.
+
+Both Demo and Query are Franka executions. Only camera 0, the external view, enters the model. Raw recordings may also contain a wrist image; it is not selected by this recipe. Demo VAE inputs are 224×224 and Query VAE inputs are 224×288. DINOv2 inputs are separately resized to 168×168.
+
+## Prepare and cache
+
+Run from the repository root. Set paths to the supplied assets:
 
 ```bash
-python scripts/robokata.py prepare plan --root "$DATA" --mixed-manifest "$MIXED" --work "$WORK" --dual-view --demo-top-view
+DATA=/absolute/path/to/verified-recording-release
+WORK=/absolute/path/to/new/main-cache
+MODEL=/absolute/path/to/zero-wam-pretrain
+DINO=/absolute/path/to/dinov2-base
+EMPTY_TEXT=/absolute/path/to/empty_text_emb.pt
+RUN=/absolute/path/to/new/main-run
+
+python scripts/robokata.py prepare plan --root "$DATA" --work "$WORK"
 python scripts/robokata.py check-data --work "$WORK" --workers 8 --output "$WORK/data-check.json"
 python scripts/robokata.py prepare stats --work "$WORK"
 python scripts/robokata.py prepare cache --work "$WORK" --model "$MODEL"
@@ -32,7 +45,11 @@ python scripts/robokata.py semantic-features --work "$WORK" --encoder "$DINO" --
 python scripts/robokata.py semantic-features --work "$WORK" --encoder "$DINO" --output "$WORK/query-dino.pt" --verify
 ```
 
-Select the four available devices for your run:
+Set WORK to a training cache directory. The preparation plan records the split, single-view input sizes and encoder identity. Normalization is fitted on the 2,700 unique training Query recordings only, not on repeated pairs or validation recordings. The Demo and Query semantic caches must use the same DINOv2 weights.
+
+VAE caching accepts `--shards N --shard I`; DINO feature caching also supports sharded extraction followed by merging. Use the original entry-point help for these optional cache settings.
+
+## Train
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1,2,3 python scripts/robokata.py --gpus 4 train \
@@ -41,12 +58,28 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python scripts/robokata.py --gpus 4 train \
   --semantic-features "$WORK/query-dino.pt"
 ```
 
-The launcher applies `configs/train.json` and enables foresight indexing.
-Explicit CLI arguments override recipe values. Defaults: 20 epochs, batch 16
-per GPU, LoRA rank 106, learning rate 5e-5, warmup 0, seed 1, demo dropout 0.3,
-semantic and indexing loss weights 0.5 each. GPU selection is never automatic.
+The launcher reads `configs/train.json` and enables FI. Training starts from the Zero-WAM pretrained foundation. Demo attention gates and indexing strengths start at zero. The shared temperature starts at one. SF and key-loss weights are both 0.5; Demo-token dropout is 0.3. FI training uses clean video conditioning.
 
-To resume, repeat the same command with `--resume-from "$RUN/checkpoints/latest.pt"`.
-Keep the same caches, GPU count, batch and schedule. Training checkpoints include
-restart state; use trusted checkpoints only. Weights are stored locally. First validate a short run using `--max-steps 1` in a separate run directory;
-that checks execution, not convergence or paper-level performance.
+| Parameter | Main recipe |
+|---|---|
+| Epochs | 20 |
+| GPUs × per-GPU batch | 4 × 16 |
+| Global batch / gradient accumulation | 64 / 1 |
+| AdamW moments / epsilon | (0.9, 0.95) / 1e-8 |
+| Weight decay / gradient clipping | 0.01 / global norm 1.0 |
+| Learning rate | 1e-5 to 1e-6 |
+| Warmup / cosine decay | 100 / 6,500 optimizer updates |
+| LoRA rank / alpha | 106 / 212 |
+| Precision / sharding | BF16 / FSDP2 |
+| Activation recomputation | Enabled on backbone blocks |
+| Checkpoint selection | Final epoch |
+
+Exact-length batching uses 115 Query/Demo length buckets. Each epoch forms 1,323 full local batches of 16, then keeps 1,320 batches for four-rank synchronization. This gives 330 optimizer updates and 21,120 pair presentations per epoch; 20 epochs give 6,600 updates and 422,400 presentations. A pair is used at most once per epoch. Of the 740 omitted pairs each epoch, 180 belong to buckets smaller than 16; the other omissions depend on the epoch shuffle. Changing the GPU count or local batch can change this schedule.
+
+Every completed epoch has a checkpoint; `latest.pt` supports recovery. To resume, repeat the same command with `--resume-from "$RUN/checkpoints/latest.pt"`. Keep the same data, caches, world size, batch and optimizer schedule. CLI overrides are available for explicit experiments; the table above is the main-model configuration.
+
+To inspect the resolved training command without launching it:
+
+```bash
+python scripts/robokata.py --print-command train --work "$WORK" --model "$MODEL" --empty-text "$EMPTY_TEXT" --run-dir "$RUN" --demo-features "$WORK/demo-dino.pt" --semantic-features "$WORK/query-dino.pt"
+```

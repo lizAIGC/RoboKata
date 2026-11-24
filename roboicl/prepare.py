@@ -28,14 +28,14 @@ def sha256(path):
 
 
 def read_json(path):
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def write_json(path, value):
     import tempfile
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as stream:
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
         temp = Path(stream.name)
         try:
             json.dump(value, stream, indent=2, sort_keys=True)
@@ -50,7 +50,7 @@ def official_indices(root):
     release = read_json(root / "release_status.json")
     bundle_path = root / "train3000/bundle.json"
     bundle_hash = sha256(bundle_path)
-    if (release["repo"], release["records"], release["pairs"]) != ("xieshanrui/RoboICL", 3000, 30000):
+    if (release["records"], release["pairs"]) != (3000, 30000):
         raise ValueError("Expected the official RoboICL train3000 release")
     if not release["complete"] or release["bundle_sha256"] != bundle_hash:
         raise ValueError("RoboICL bundle hash differs from the official release")
@@ -126,13 +126,17 @@ def required_latents(plan):
     return sorted({(role, pair[role]) for split in plan["pairs"].values() for pair in split for role in ROLES})
 
 
-def plan_data(root, work, fraction, seed, dual_view=False, demo_top_view=False):
-    if demo_top_view and not dual_view:
-        raise ValueError('--demo-top-view requires --dual-view')
+def plan_data(root, work, fraction, seed):
+    from single_embodiment import PROFILE, audit_plan
+
+    if fraction != 0.10 or seed != 20261105:
+        raise ValueError("The main recipe uses validation fraction 0.10 and split seed 20261105")
     rows, pairs, files, bundle_hash = official_indices(root)
     records, splits, validation, excluded = make_split(rows, pairs, fraction, seed)
     plan = {
-        "schema": SCHEMA, "encoding": DUAL_ENCODING if dual_view else ENCODING, "bundle_sha256": bundle_hash,
+        "schema": SCHEMA, "encoding": ENCODING, "bundle_sha256": bundle_hash,
+        "data_profile": PROFILE,
+        "demo_resize_hw": [224, 224], "query_resize_hw": [224, 288],
         "source_root": str(root), "split_seed": seed, "validation_fraction": fraction,
         "validation_families": validation, "pairs": splits, **excluded,
         "records": {
@@ -143,8 +147,7 @@ def plan_data(root, work, fraction, seed, dual_view=False, demo_top_view=False):
             for episode, row in records.items()
         },
     }
-    if demo_top_view:
-        plan["demo_top_view"] = True
+    audit_plan(plan)
     path = work / "plan.json"
     if path.exists() and read_json(path) != plan:
         raise ValueError("This preparation directory already contains a different split; use another directory")
@@ -155,9 +158,12 @@ def plan_data(root, work, fraction, seed, dual_view=False, demo_top_view=False):
 
 
 def load_plan(work):
+    from single_embodiment import audit_plan
+
     plan = read_json(work / "plan.json")
-    if plan["schema"] != SCHEMA or plan["encoding"] not in {ENCODING, DUAL_ENCODING}:
+    if plan["schema"] != SCHEMA or plan["encoding"] != ENCODING:
         raise ValueError("Unsupported RoboICL preparation plan")
+    audit_plan(plan)
     return plan
 
 
@@ -206,16 +212,15 @@ def encoder_identity(model):
 
 
 def cache_contract(plan, encoder):
+    from single_embodiment import audit_plan
+
+    audit_plan(plan)
     contract = {"encoding": plan["encoding"], "bundle_sha256": plan["bundle_sha256"], "encoder": encoder,
-            "camera": 0, "demo_resize_hw": [320, 480], "query_resize_hw": [224, 288],
+            "data_profile": plan["data_profile"],
+            "camera": 0, "demo_resize_hw": list(plan["demo_resize_hw"]),
+            "query_resize_hw": list(plan["query_resize_hw"]),
             "demo_fps": 12, "query_rgb_stride": 4, "query_control_hz": CONTROL_HZ,
             "action_interval": ACTION_INTERVAL}
-    if camera_count(plan) == 2:
-        del contract["camera"]
-        contract.update(cameras=[0, 1], composition="horizontal",
-                        demo_resize_hw=list(DUAL_SIZE), query_resize_hw=list(DUAL_SIZE))
-    if plan.get("demo_top_view", False):
-        contract.update(demo_cameras=[0], demo_resize_hw=[224, 224])
     return contract
 
 
@@ -257,7 +262,7 @@ def build_cache(work, plan, model, shard, shards, smoke=False, gpu_memory_mib=No
     import numpy as np
     import torch
     from filelock import FileLock
-    from pilot import encode, recording
+    from data_adapter import encode, recording
     from examples.baselines.zero_wam.zero_wam.runtime import atomic_torch_save
     from examples.baselines.zero_wam.zero_wam.wan_va.modules.utils import WanVAEStreamingWrapper, load_vae
 
@@ -347,11 +352,8 @@ def main():
         sub.add_argument("--work", required=True, type=Path)
         if command == "plan":
             sub.add_argument("--root", required=True, type=Path)
-            sub.add_argument("--mixed-manifest", type=Path, help="Directory containing the derived 25k pairs, records and validation.json")
             sub.add_argument("--validation-fraction", type=float, default=0.10)
             sub.add_argument("--seed", type=int, default=20261105)
-            sub.add_argument("--dual-view", action="store_true")
-            sub.add_argument("--demo-top-view", action="store_true", help="Use camera 0 only for demos, with dual-view queries")
         if command in {"cache", "verify"}:
             sub.add_argument("--model", required=True, type=Path)
         if command == "cache":
@@ -363,15 +365,8 @@ def main():
             sub.add_argument("--gpu-memory-mib", type=int)
     args = parser.parse_args()
     work = args.work.resolve()
-    if args.command == "plan" and args.mixed_manifest:
-        if not args.dual_view or not args.demo_top_view:
-            parser.error("--mixed-manifest requires --dual-view --demo-top-view")
-        from mixed_plan import plan_mixed
-
-        plan_mixed(args.root.resolve(), args.mixed_manifest.resolve(), work)
-        return
     if args.command == "plan":
-        plan_data(args.root.resolve(), work, args.validation_fraction, args.seed, args.dual_view, args.demo_top_view)
+        plan_data(args.root.resolve(), work, args.validation_fraction, args.seed)
         return
     plan = load_plan(work)
     if args.command == "stats":
