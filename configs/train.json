@@ -1,0 +1,13 @@
+{
+  "gpus": 4,
+  "batch_per_gpu": 16,
+  "epochs": 20,
+  "learning_rate": 5e-05,
+  "warmup_steps": 0,
+  "demo_dropout": 0.3,
+  "semantic_weight": 0.5,
+  "key_weight": 0.5,
+  "lora_rank": 106,
+  "seed": 1,
+  "num_workers": 2
+}
