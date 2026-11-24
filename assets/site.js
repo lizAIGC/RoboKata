@@ -1,9 +1,9 @@
 (()=>{'use strict';
 const DATA=window.ROBOKATA_DATA;
-const asset=s=>'assets/'+s;const pairs=[];let heroPair,heroIndex=0;
+const asset=s=>'assets/'+s;let heroPair,heroIndex=0;
 class Pair{
- constructor(el,item){this.el=el;this.state='idle';this.running=false;this.ready=false;this.item=item;this.el.dataset.phase='idle';this.el.innerHTML=`<div class="pair-head"><span>Demo</span><span>Execution</span></div><div class="pair-panes"><video autoplay loop muted playsinline preload="auto" poster="${asset(item.dp)}" aria-label="Demonstration"></video><video autoplay loop muted playsinline preload="auto" poster="${asset(item.qp)}" aria-label="Robot execution"></video></div><div class="pair-bar"><button class="toggle" aria-label="Pause videos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></button><input aria-label="Video progress" type="range" min="0" max="1000" value="0"><span class="time">0:00</span><button class="pair-fullscreen" aria-label="Fullscreen">⛶</button></div>`;
- [this.d,this.q]=el.querySelectorAll('video');this.button=el.querySelector('.toggle');this.seek=el.querySelector('input');this.clock=el.querySelector('.time');this.button.onclick=()=>this.running?this.pause():this.play();this.d.ontimeupdate=()=>this.update();this.q.ontimeupdate=()=>this.update();this.seek.oninput=()=>this.scrub();el.querySelector('.pair-fullscreen').onclick=()=>{if(el.requestFullscreen)el.requestFullscreen().catch(()=>{})};for(const v of [this.d,this.q])v.onerror=()=>{this.running=false;this.setControl('Retry');this.button.title='Video could not load'};pairs.push(this);this.play()}
+ constructor(el,item){this.el=el;this.state='idle';this.running=false;this.ready=false;this.item=item;this.el.dataset.phase='idle';this.el.innerHTML=`<div class="pair-head"><span>Demo</span><span>Execution</span></div><div class="pair-panes"><video muted playsinline preload="auto" poster="${asset(item.dp)}" aria-label="Demonstration"></video><video muted playsinline preload="auto" poster="${asset(item.qp)}" aria-label="Robot execution"></video></div><div class="pair-bar"><button class="toggle" aria-label="Pause videos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></button><input aria-label="Video progress" type="range" min="0" max="1000" value="0"><span class="time">0:00</span><button class="pair-fullscreen" aria-label="Fullscreen">⛶</button></div>`;
+ [this.d,this.q]=el.querySelectorAll('video');this.button=el.querySelector('.toggle');this.seek=el.querySelector('input');this.clock=el.querySelector('.time');this.button.onclick=()=>this.running?this.pause():this.play();this.d.ontimeupdate=()=>this.update();this.q.ontimeupdate=()=>this.update();this.seek.oninput=()=>this.scrub();el.querySelector('.pair-fullscreen').onclick=()=>{if(el.requestFullscreen)el.requestFullscreen().catch(()=>{})};for(const v of [this.d,this.q])v.onerror=()=>{this.running=false;this.setControl('Retry');this.button.title='Video could not load'}}
  setControl(mode){this.button.innerHTML=mode==='Pause'?'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';this.button.setAttribute('aria-label',mode);this.button.title=mode}
  load(){if(this.ready)return;this.d.src=asset(this.item.demo);this.q.src=asset(this.item.query);this.d.load();this.q.load();this.ready=true}
  safePlay(v){v.muted=true;v.loop=true;v.autoplay=true;v.play().catch(()=>{if(this.running){this.pause();this.button.title='Click to play videos'}})}
@@ -13,8 +13,64 @@ class Pair{
  scrub(){this.load();const fraction=Number(this.seek.value)/1000;for(const v of [this.d,this.q]){if(Number.isFinite(v.duration))v.currentTime=v.duration*fraction}}
 
 }
-function mountAll(root=document){root.querySelectorAll('[data-pair]:not([data-mounted])').forEach(el=>{el.dataset.mounted='1';new Pair(el,DATA.items[el.dataset.pair])})}
-function hero(i){if(heroPair)heroPair.pause();heroIndex=(i+DATA.hero.length)%DATA.hero.length;let id=DATA.hero[heroIndex],it=DATA.items[id];document.getElementById('hero-pair').classList.toggle('landscape',it.section==='robotwin');heroPair=new Pair(document.getElementById('hero-pair'),it);document.getElementById('hero-task').textContent=it.title;document.querySelectorAll('.dots button').forEach((b,n)=>b.setAttribute('aria-current',String(n===heroIndex)));updateHeroPreviews()}
+class HeroPair extends Pair {
+ constructor(el, item) {
+  super(el, item);
+  this.state = 'demo';
+  this.d.onended = () => {
+   if (this.state !== 'demo' || !this.d.ended) return;
+   this.state = 'execution';
+   if (this.running) this.play();
+  };
+  this.q.onended = () => {
+   if (this.state !== 'execution' || !this.q.ended) return;
+   this.pause();
+   this.state = 'done';
+   this.setControl('Replay');
+   const finished = this;
+   setTimeout(() => {
+    if (heroPair === finished && this.state === 'done') hero(heroIndex + 1);
+   }, 1200);
+  };
+ }
+ play() {
+  this.load();
+  if (this.state === 'done') {
+   this.d.currentTime = this.q.currentTime = 0;
+   this.state = 'demo';
+  }
+  this.running = true;
+  this.el.dataset.phase = this.state;
+  this.setControl('Pause');
+  const video = this.state === 'demo' ? this.d : this.q;
+  video.play().catch(error => {
+   if (error.name !== 'AbortError' && this.running) this.pause();
+  });
+ }
+ update() {
+  const total = this.d.duration + this.q.duration;
+  if (!Number.isFinite(total) || !total) return;
+  const time = this.state === 'demo' ? this.d.currentTime : this.d.duration + this.q.currentTime;
+  this.seek.value = 1000 * time / total;
+  this.clock.textContent = Math.floor(time / 60) + ':' + String(Math.floor(time % 60)).padStart(2, '0');
+ }
+ scrub() {
+  const total = this.d.duration + this.q.duration;
+  if (!Number.isFinite(total)) return;
+  const time = total * Number(this.seek.value) / 1000;
+  this.d.pause();
+  this.q.pause();
+  this.state = time < this.d.duration ? 'demo' : 'execution';
+  this.d.currentTime = Math.min(time, this.d.duration);
+  this.q.currentTime = Math.max(0, time - this.d.duration);
+  this.el.dataset.phase = this.state;
+  if (this.running) this.play();
+  else this.setControl('Play');
+  this.update();
+ }
+}
+function mountAll(root=document){root.querySelectorAll('[data-pair]:not([data-mounted])').forEach(el=>{el.dataset.mounted='1';new Pair(el,DATA.items[el.dataset.pair]).play()})}
+function hero(i){if(heroPair)heroPair.pause();heroIndex=(i+DATA.hero.length)%DATA.hero.length;let id=DATA.hero[heroIndex],it=DATA.items[id];document.getElementById('hero-pair').classList.toggle('landscape',it.section==='robotwin');heroPair=new HeroPair(document.getElementById('hero-pair'),it);heroPair.play();document.getElementById('hero-task').textContent=it.title;document.querySelectorAll('.dots button').forEach((b,n)=>b.setAttribute('aria-current',String(n===heroIndex)));updateHeroPreviews()}
 function updateHeroPreviews(){
  const current=DATA.items[DATA.hero[heroIndex]];
  document.querySelector('.carousel-stage').dataset.format=current.section==='robotwin'?'landscape':'square';
